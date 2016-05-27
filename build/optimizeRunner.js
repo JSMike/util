@@ -93,8 +93,8 @@ function ccompile(src, dest, optimizeSwitch, copyright, optimizeOptions, useSour
 		jscomp = com.google.javascript.jscomp;
 	}
 
-	//Fake extern
-	var externSourceFile = closurefromCode("fakeextern.js", " ");
+	//Fake extern required with 'Symbol' defined
+	var externSourceFile = closurefromCode("fakeextern.js", "function Symbol(description) {}");
 
 	//Set up source input
 	// it is possible dest could have backslashes on windows (particularly with cygwin)
@@ -104,6 +104,17 @@ function ccompile(src, dest, optimizeSwitch, copyright, optimizeOptions, useSour
 	//Set up options
 	var options = new jscomp.CompilerOptions();
 	for(var k in optimizeOptions){
+		// some options need to pass as funtion argument
+		if (k === 'languageIn') {
+			options.setLanguageIn(jscomp.CompilerOptions.LanguageMode.fromString(optimizeOptions[k]));
+			continue;
+		}
+
+		if (k === 'languageOut') {
+			options.setLanguageOut(jscomp.CompilerOptions.LanguageMode.fromString(optimizeOptions[k]));
+			continue;
+		}
+
 		options[k] = optimizeOptions[k];
 	}
 	// Must have non-null path to trigger source map generation, also fix version
@@ -137,6 +148,20 @@ function ccompile(src, dest, optimizeSwitch, copyright, optimizeOptions, useSour
 	}
 }
 
+function shutdownClosureExecutorService(){
+	try{
+		var compilerClass = java.lang.Class.forName("com.google.javascript.jscomp.Compiler");
+		var compilerExecutorField = compilerClass.getDeclaredField("compilerExecutor");
+		compilerExecutorField.setAccessible(true);
+		var compilerExecutor = compilerExecutorField.get(compilerClass);
+		compilerExecutor.shutdown();
+	}catch (e){
+		print(e);
+		if("javaException" in e){
+			e.javaException.printStackTrace();
+		}
+	}
+}
 
 var
 	console = new java.io.BufferedReader(new java.io.InputStreamReader(java.lang.System["in"])),
@@ -169,4 +194,8 @@ while(1){
 		exception = ". OPTIMIZER FAILED: " + e;
 	}
 	print("Done (compile time:" + ((new Date()).getTime()-start)/1000 + "s)" + exception);
+}
+
+if (jscomp) {
+	shutdownClosureExecutorService();
 }
