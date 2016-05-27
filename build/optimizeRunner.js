@@ -93,8 +93,8 @@ function ccompile(src, dest, optimizeSwitch, copyright, optimizeOptions, useSour
 		jscomp = com.google.javascript.jscomp;
 	}
 
-	//Fake extern
-	var externSourceFile = closurefromCode("fakeextern.js", " ");
+	//Fake extern required with 'Symbol' defined
+	var externSourceFile = closurefromCode("fakeextern.js", "function Symbol(description) {}");
 
 	//Set up source input
 	// it is possible dest could have backslashes on windows (particularly with cygwin)
@@ -104,10 +104,14 @@ function ccompile(src, dest, optimizeSwitch, copyright, optimizeOptions, useSour
 	//Set up options
 	var options = new jscomp.CompilerOptions();
 	for(var k in optimizeOptions){
-
 		// some options need to pass as funtion argument
 		if (k === 'languageIn') {
-			options.setLanguageIn(jscomp.CompilerOptions.LanguageMode[optimizeOptions[k]]);
+			options.setLanguageIn(jscomp.CompilerOptions.LanguageMode.fromString(optimizeOptions[k]));
+			continue;
+		}
+
+		if (k === 'languageOut') {
+			options.setLanguageOut(jscomp.CompilerOptions.LanguageMode.fromString(optimizeOptions[k]));
 			continue;
 		}
 
